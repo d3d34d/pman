@@ -1,0 +1,341 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// All monetary amounts are integer cents.
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  role          String // MANAGER | TENANT
+  name          String
+  phone         String?
+  // Bumped on password change / "log out everywhere". Every JWT carries the
+  // version it was minted with; a mismatch is rejected, so old tokens die.
+  tokenVersion  Int            @default(0)
+  createdAt     DateTime       @default(now())
+  properties    Property[]
+  tenantProfile TenantProfile?
+  notes         Note[]
+  maintenance   MaintenanceRequest[]
+  messages      Message[]
+  deviceTokens  DeviceToken[]
+  notifications Notification[]
+}
+
+// A persisted in-app alert, so users keep a history even if they miss the push.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // PAYMENT_SUBMISSION | PAYMENT_REVIEWED
+  title     String
+  body      String
+  data      String? // JSON: deep-link target and ids
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// An Expo push token for one of a user's devices. Multiple per user.
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now())
+}
+
+model Property {
+  id            String         @id @default(cuid())
+  managerId     String
+  manager       User           @relation(fields: [managerId], references: [id])
+  name          String
+  address       String
+  type          String? // e.g. Apartment building, Single-family, Duplex
+  notes         String?
+  createdAt     DateTime       @default(now())
+  units         Unit[]
+  expenses      Expense[]
+  announcements Announcement[]
+}
+
+model Unit {
+  id             String  @id @default(cuid())
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  label          String
+  bedrooms       Int?
+  bathrooms      Float?
+  sqft           Int?
+  marketRentCents Int?
+  notes          String?
+  leases         Lease[]
+  maintenance    MaintenanceRequest[]
+}
+
+model TenantProfile {
+  id             String   @id @default(cuid())
+  managerId      String
+  userId         String?  @unique
+  user           User?    @relation(fields: [userId], references: [id])
+  fullName       String
+  email          String?
+  phone          String?
+  emergencyName  String?
+  emergencyPhone String?
+  status         String   @default("ACTIVE") // ACTIVE | FORMER
+  createdAt      DateTime @default(now())
+  leases         LeaseTenant[]
+  notes          Note[]
+  invites        Invite[]
+  paymentMethods PaymentMethod[]
+  autopays       Autopay[]
+  submissions    PaymentSubmission[]
+}
+
+model Lease {
+  id           String    @id @default(cuid())
+  unitId       String
+  unit         Unit      @relation(fields: [unitId], references: [id])
+  status       String    @default("ACTIVE") // ACTIVE | MONTH_TO_MONTH | ENDED
+  startDate    DateTime
+  endDate      DateTime?
+  dueDay       Int       @default(1)
+  depositCents Int       @default(0)
+  graceDays    Int       @default(5)
+  lateFeeCents Int       @default(0)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  tenants      LeaseTenant[]
+  rentTerms    RentTerm[]
+  charges      Charge[]
+  payments     Payment[]
+  maintenance  MaintenanceRequest[]
+  attempts     PaymentAttempt[]
+  messages     Message[]
+  autopay      Autopay?
+  submissions  PaymentSubmission[]
+}
+
+model LeaseTenant {
+  leaseId  String
+  lease    Lease         @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([leaseId, tenantId])
+}
+
+// Rent changes append a new row; the row with the latest effectiveFrom <= period start wins.
+model RentTerm {
+  id            String   @id @default(cuid())
+  leaseId       String
+  lease         Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  amountCents   Int
+  effectiveFrom DateTime
+  note          String?
+  createdAt     DateTime @default(now())
+}
+
+model Charge {
+  id          String   @id @default(cuid())
+  leaseId     String
+  lease       Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  type        String // RENT | LATE_FEE | OTHER
+  amountCents Int
+  period      String // "YYYY-MM"
+  dueDate     DateTime
+  description String?
+  createdAt   DateTime @default(now())
+}
+
+model Payment {
+  id           String   @id @default(cuid())
+  leaseId      String
+  lease        Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  amountCents  Int
+  receivedDate DateTime
+  method       String // CASH | CHECK | BANK_TRANSFER | ZELLE | CARD | OTHER
+  reference    String?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  // Portal payments (card via a payment provider). Manual manager-recorded
+  // payments leave these null and carry source = MANUAL.
+  source          String         @default("MANUAL") // MANUAL | PORTAL | AUTOPAY
+  receiptNumber   String?        @unique
+  providerRef     String?
+  // Cards can be removed from the wallet; receipts survive because `reference`
+  // already carries the display string (e.g. "VISA ····4242").
+  paymentMethodId String?
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  attempt         PaymentAttempt?
+  submission      PaymentSubmission?
+}
+
+// A tenant-declared payment awaiting manager review: "I paid $X via Zelle,
+// here's a screenshot." Approving it creates a real Payment in the ledger.
+model PaymentSubmission {
+  id          String        @id @default(cuid())
+  leaseId     String
+  lease       Lease         @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  amountCents Int
+  method      String // ZELLE | BANK_TRANSFER | CASH | CHECK | OTHER
+  paidOn      DateTime
+  reference   String?
+  note        String?
+  proofPath   String? // stored screenshot filename (served via signed URL)
+  proofMime   String?
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewNote  String?
+  reviewedAt  DateTime?
+  // Set when approved — the Payment this submission produced.
+  paymentId   String?   @unique
+  payment     Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+}
+
+// A tokenized card. The full card number NEVER touches our database — the
+// provider returns an opaque token plus display-safe brand/last4.
+model PaymentMethod {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  provider      String // MOCK | STRIPE
+  providerToken String
+  brand         String // VISA | MASTERCARD | AMEX | DISCOVER | CARD
+  last4         String
+  expMonth      Int
+  expYear       Int
+  isDefault     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  payments      Payment[]
+  attempts      PaymentAttempt[]
+  autopays      Autopay[]
+}
+
+// Every charge attempt, successful or declined. Declines never create a
+// Payment row, so the ledger only ever contains money that actually moved.
+model PaymentAttempt {
+  id              String         @id @default(cuid())
+  leaseId         String
+  lease           Lease          @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  paymentMethodId String?
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  amountCents     Int
+  status          String // PENDING | SUCCEEDED | FAILED
+  failureCode     String?
+  failureMessage  String?
+  providerRef     String?
+  idempotencyKey  String         @unique
+  paymentId       String?        @unique
+  payment         Payment?       @relation(fields: [paymentId], references: [id])
+  createdAt       DateTime       @default(now())
+}
+
+model Autopay {
+  id              String        @id @default(cuid())
+  leaseId         String        @unique
+  lease           Lease         @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenantId        String
+  tenant          TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paymentMethodId String
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  enabled         Boolean       @default(true)
+  lastRunPeriod   String? // "YYYY-MM" of the last successful autopay charge
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+// Two-way thread between a tenant and their manager, scoped to a lease.
+model Message {
+  id        String   @id @default(cuid())
+  leaseId   String
+  lease     Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+}
+
+model MaintenanceRequest {
+  id          String    @id @default(cuid())
+  unitId      String
+  unit        Unit      @relation(fields: [unitId], references: [id])
+  leaseId     String?
+  lease       Lease?    @relation(fields: [leaseId], references: [id])
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  title       String
+  description String
+  status      String    @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED
+  priority    String    @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  vendorName  String?
+  costCents   Int?
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  category    String // REPAIRS | UTILITIES | TAXES | INSURANCE | MANAGEMENT | OTHER
+  amountCents Int
+  incurredOn  DateTime
+  description String?
+  createdAt   DateTime @default(now())
+}
+
+// Polymorphic attachment: ownerType is PROPERTY | LEASE | TENANT | MAINTENANCE | EXPENSE
+model Document {
+  id         String   @id @default(cuid())
+  managerId  String
+  ownerType  String
+  ownerId    String
+  filename   String
+  path       String
+  mimeType   String?
+  uploadedAt DateTime @default(now())
+}
+
+model Note {
+  id        String        @id @default(cuid())
+  tenantId  String
+  tenant    TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime      @default(now())
+}
+
+model Invite {
+  id        String        @id @default(cuid())
+  code      String        @unique
+  tenantId  String
+  tenant    TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+}
+
+model Announcement {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  title      String
+  body       String
+  createdAt  DateTime @default(now())
+}

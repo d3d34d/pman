@@ -1,0 +1,28 @@
+{
+  "name": "pman",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "api": "npm run dev --workspace apps/api",
+    "mobile": "npm run start --workspace apps/mobile",
+    "android": "npm run start --workspace apps/mobile -- --android",
+    "android:build": "npm run android --workspace apps/mobile",
+    "android:bundle": "npm run export:android --workspace apps/mobile",
+    "web": "npm run web --workspace apps/mobile",
+    "test": "npm run test --workspace apps/api",
+    "typecheck": "npm run typecheck --workspace apps/api && npm run typecheck --workspace apps/mobile",
+    "seed": "npm run seed --workspace apps/api",
+    "qr": "node scripts/make-qr.mjs"
+  },
+  "devDependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "//": "Keep react and react-dom identical (Expo SDK 54); react-dom/server refuses a version skew.",
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}

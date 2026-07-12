@@ -1,0 +1,50 @@
+name: Deploy web to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Export web bundle
+        working-directory: apps/mobile
+        env:
+          # Served from https://<user>.github.io/pman/ — assets need the subpath.
+          EXPO_PUBLIC_BASE_URL: /pman
+        run: npx expo export --platform web --output-dir dist
+      - name: Add Pages fallbacks
+        working-directory: apps/mobile/dist
+        run: |
+          cp index.html 404.html   # deep links resolve to the app shell
+          touch .nojekyll          # keep the _expo/ directory
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/mobile/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

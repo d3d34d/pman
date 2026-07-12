@@ -1,0 +1,23 @@
+node_modules/
+.expo/
+dist/
+dist-android/
+build/
+*.log
+.DS_Store
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+apps/api/uploads/
+.env
+.env.local
+
+# Android build artifacts (the checked-in android/ project itself is kept)
+apps/mobile/android/.gradle/
+apps/mobile/android/build/
+apps/mobile/android/app/build/
+apps/mobile/android/local.properties
+apps/mobile/android/.cxx/
+*.apk
+*.aab
+*.keystore
+!debug.keystore
