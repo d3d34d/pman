@@ -2,7 +2,7 @@ import { Link, router } from 'expo-router'
 import type { Href } from 'expo-router'
 import { useState } from 'react'
 import { Text, View } from 'react-native'
-import { api } from '@/lib/api'
+import { api, DEMO } from '@/lib/api'
 import { useAuth, type User } from '@/lib/auth'
 import { colors } from '@/lib/theme'
 import { Button, ErrorText, Field, Muted, Screen, Spacer, Title } from './kit'
@@ -28,8 +28,10 @@ export function SignInForm({
   switchHref: Href
 }) {
   const { signIn } = useAuth()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  // In the browser demo, prefill the matching account so reviewers can just tap Log in.
+  const demoEmail = role === 'MANAGER' ? 'manager@pman.dev' : 'tenant@pman.dev'
+  const [email, setEmail] = useState(DEMO ? demoEmail : '')
+  const [password, setPassword] = useState(DEMO ? 'password123' : '')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 

@@ -1,5 +1,6 @@
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
+import { handleDemo, handleDemoCsv, handleDemoUpload } from '../demo/backend'
 
 export class ApiError extends Error {
   constructor(
@@ -11,6 +12,12 @@ export class ApiError extends Error {
 }
 
 export const API_PORT = 4000
+
+// DEMO MODE: the GitHub Pages build sets EXPO_PUBLIC_DEMO=1, which routes every
+// call to an in-browser backend (../demo/backend) instead of a real server, so
+// the static site works with the demo logins and full click-through. Off
+// everywhere else (local dev, native builds) — there it talks to the real API.
+export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1'
 
 export function getBaseUrl(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL
@@ -41,6 +48,9 @@ type ApiOptions = {
 }
 
 export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {
+  if (DEMO) {
+    return (await handleDemo(opts.method ?? 'GET', path, opts.body ?? null, authToken)) as T
+  }
   const res = await fetch(`${getBaseUrl()}${path}`, {
     method: opts.method ?? 'GET',
     headers: {
@@ -55,12 +65,29 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
   return json as T
 }
 
+/** Resolve any image/file uri to a data: URL (DEMO mode only; web). */
+async function toDataUrl(uri: string): Promise<string> {
+  if (uri.startsWith('data:')) return uri
+  const blob = await (await fetch(uri)).blob()
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('Could not read the selected file'))
+    reader.readAsDataURL(blob)
+  })
+}
+
 /** Multipart upload that works on native (uri-based) and web (blob-based). */
 export async function apiUpload<T = unknown>(
   path: string,
   file: { uri: string; name: string; mimeType?: string },
   fields: Record<string, string> = {},
 ): Promise<T> {
+  if (DEMO) {
+    const url = await toDataUrl(file.uri)
+    return (await handleDemoUpload(path, { url, name: file.name, mimeType: file.mimeType ?? 'application/octet-stream' }, fields, authToken)) as T
+  }
+
   const form = new FormData()
   for (const [k, v] of Object.entries(fields)) form.append(k, v)
 
@@ -92,6 +119,20 @@ export async function apiUpload<T = unknown>(
  * is opened so it can be saved or emailed.
  */
 export async function downloadFile(path: string, filename: string, mimeType = 'text/csv'): Promise<void> {
+  if (DEMO) {
+    const text = await handleDemoCsv(path, authToken)
+    const blob = new Blob([text], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    return
+  }
+
   const res = await fetch(`${getBaseUrl()}${path}`, {
     headers: authToken ? { authorization: `Bearer ${authToken}` } : {},
   })

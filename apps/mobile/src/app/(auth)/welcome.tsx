@@ -1,5 +1,6 @@
 import { router } from 'expo-router'
 import { Pressable, Text, View } from 'react-native'
+import { DEMO } from '@/lib/api'
 import { colors } from '@/lib/theme'
 import { Body, Muted, Screen, Spacer, Title } from '@/ui/kit'
 
@@ -81,6 +82,35 @@ export default function Welcome() {
         subtitle="Pay rent, see your lease, message your manager"
         onPress={() => router.push('/tenant-login')}
       />
+
+      {DEMO && (
+        <View
+          style={{
+            marginTop: 10,
+            backgroundColor: colors.primarySoft,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 14,
+            padding: 16,
+          }}
+        >
+          <Body bold>🧪 Live demo</Body>
+          <Spacer h={6} />
+          <Muted small>
+            This runs on sample data right in your browser — no server, nothing to install. Sign in with either account
+            (password <Text style={{ fontWeight: '700' }}>password123</Text>):
+          </Muted>
+          <Spacer h={8} />
+          <Muted small>
+            Manager · <Text style={{ fontWeight: '700' }}>manager@pman.dev</Text>
+          </Muted>
+          <Muted small>
+            Tenant · <Text style={{ fontWeight: '700' }}>tenant@pman.dev</Text>
+          </Muted>
+          <Spacer h={8} />
+          <Muted small>Everything is editable; your changes reset when you refresh the page.</Muted>
+        </View>
+      )}
     </Screen>
   )
 }

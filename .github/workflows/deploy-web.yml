@@ -29,6 +29,10 @@ jobs:
         env:
           # Served from https://<user>.github.io/pman/ — assets need the subpath.
           EXPO_PUBLIC_BASE_URL: /pman
+          # No API server on Pages: run the self-contained in-browser backend so
+          # the demo logins work and every screen is clickable (data resets on
+          # refresh). See apps/mobile/src/demo/ and src/lib/api.ts.
+          EXPO_PUBLIC_DEMO: '1'
         run: npx expo export --platform web --output-dir dist
       - name: Add Pages fallbacks
         working-directory: apps/mobile/dist
