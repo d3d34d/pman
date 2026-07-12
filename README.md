@@ -9,7 +9,7 @@ A mobile app (Android / iOS / web) for property managers, with a full tenant por
 
 The web front-end auto-deploys to **GitHub Pages** → **https://d3d34d.github.io/pman/**
 
-**Temporary demo logins** (password `password123` for both):
+**The live link is a working demo** — sign in with either account (both prefilled on the sign-in screen):
 
 | Role             | Email              | Password      |
 |------------------|--------------------|---------------|
@@ -18,7 +18,7 @@ The web front-end auto-deploys to **GitHub Pages** → **https://d3d34d.github.i
 
 Tenant invite code for the signup flow: `WELCOME1`.
 
-> ⚠️ **The live link is a UI preview only.** GitHub Pages serves static files, so the Fastify + SQLite **API cannot run there** — the logins above **won't work on the Pages site**. They work when you run the app against the local (or a hosted) API: follow the Quick start below (`npm run seed` creates these accounts), then sign in. See [SHIPPING-ANDROID.md](SHIPPING-ANDROID.md) for hosting the API so the deployed site works end-to-end.
+> ℹ️ GitHub Pages has no server, so the deployed site runs a **self-contained in-browser backend** ([`apps/mobile/src/demo/`](apps/mobile/src/demo/), enabled by `EXPO_PUBLIC_DEMO=1`) that mirrors the real API's data and money math. Every screen is clickable and the headline flows work — including a tenant submitting a payment and the manager approving it. It runs on sample data in your browser and **resets on refresh**. Native builds and local dev ignore this flag and talk to the real Fastify + SQLite API (see Quick start; `npm run seed` creates the same accounts).
 
 ## Structure
 
