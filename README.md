@@ -9,7 +9,16 @@ A mobile app (Android / iOS / web) for property managers, with a full tenant por
 
 The web front-end auto-deploys to **GitHub Pages** → **https://d3d34d.github.io/pman/**
 
-> ⚠️ **This is a UI preview only.** GitHub Pages serves static files, so the Fastify + SQLite **API cannot run there**. The app loads and you can browse the welcome / sign-in screens, but logging in and data won't work until the API is hosted (Render/Railway/etc.) and `EXPO_PUBLIC_API_URL` points at it. To run the real thing, use the Quick start below. See [SHIPPING-ANDROID.md](SHIPPING-ANDROID.md) for the hosting steps.
+**Temporary demo logins** (password `password123` for both):
+
+| Role             | Email              | Password      |
+|------------------|--------------------|---------------|
+| Property Manager | `manager@pman.dev` | `password123` |
+| Tenant           | `tenant@pman.dev`  | `password123` |
+
+Tenant invite code for the signup flow: `WELCOME1`.
+
+> ⚠️ **The live link is a UI preview only.** GitHub Pages serves static files, so the Fastify + SQLite **API cannot run there** — the logins above **won't work on the Pages site**. They work when you run the app against the local (or a hosted) API: follow the Quick start below (`npm run seed` creates these accounts), then sign in. See [SHIPPING-ANDROID.md](SHIPPING-ANDROID.md) for hosting the API so the deployed site works end-to-end.
 
 ## Structure
 
