@@ -19,11 +19,29 @@ export const API_PORT = 4000
 // everywhere else (local dev, native builds) — there it talks to the real API.
 export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1'
 
+/**
+ * Where the app talks to the API.
+ *
+ * Release builds MUST be built with `EXPO_PUBLIC_API_URL` set to a public
+ * https host (see apps/mobile/eas.json). There is deliberately no localhost
+ * fallback in production: a shipped app has no Metro server to derive a host
+ * from, so falling back would point every installed copy at the user's own
+ * device and fail with a confusing network error. Failing loudly at build/run
+ * time is far easier to diagnose than that.
+ */
 export function getBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL
+  const configured = process.env.EXPO_PUBLIC_API_URL?.trim()
+  if (configured) return configured.replace(/\/+$/, '') // tolerate a trailing slash
 
-  // Derive the API host from wherever Metro is serving the app, so a physical
-  // phone on the same Wi-Fi reaches the dev machine with no configuration.
+  if (!__DEV__) {
+    throw new ApiError(
+      0,
+      'This build has no API server configured. Rebuild with EXPO_PUBLIC_API_URL set to your API URL.',
+    )
+  }
+
+  // Dev only: derive the API host from wherever Metro is serving the app, so a
+  // physical phone on the same Wi-Fi reaches the dev machine with no config.
   const hostUri = Constants.expoConfig?.hostUri
   let host = hostUri ? hostUri.split(':')[0] : 'localhost'
 
@@ -47,20 +65,44 @@ type ApiOptions = {
   body?: object
 }
 
+/**
+ * Turns transport-level failures (airplane mode, server down, DNS) into a
+ * message a real user can act on. `fetch` rejects with "Network request
+ * failed" / "Failed to fetch", which tells a tenant nothing.
+ */
+function networkError(e: unknown): ApiError {
+  if (e instanceof ApiError) return e
+  return new ApiError(0, 'Can’t reach the server. Check your connection and try again.')
+}
+
 export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {
   if (DEMO) {
     return (await handleDemo(opts.method ?? 'GET', path, opts.body ?? null, authToken)) as T
   }
-  const res = await fetch(`${getBaseUrl()}${path}`, {
-    method: opts.method ?? 'GET',
-    headers: {
-      ...(opts.body ? { 'content-type': 'application/json' } : {}),
-      ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
-    },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  })
+
+  let res: Response
+  try {
+    res = await fetch(`${getBaseUrl()}${path}`, {
+      method: opts.method ?? 'GET',
+      headers: {
+        ...(opts.body ? { 'content-type': 'application/json' } : {}),
+        ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+      },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    })
+  } catch (e) {
+    throw networkError(e)
+  }
+
   const text = await res.text()
-  const json = text ? JSON.parse(text) : {}
+  let json: unknown = {}
+  try {
+    json = text ? JSON.parse(text) : {}
+  } catch {
+    // A proxy/tunnel returned HTML (e.g. a 502 page) instead of our JSON.
+    if (!res.ok) throw new ApiError(res.status, `Server error (${res.status}). Please try again.`)
+    throw new ApiError(res.status, 'Unexpected response from the server.')
+  }
   if (!res.ok) throw new ApiError(res.status, (json as { error?: string }).error ?? `Request failed (${res.status})`)
   return json as T
 }

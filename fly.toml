@@ -1,0 +1,58 @@
+# Fly.io deployment for the PMAN API.
+#
+# Chosen because one small volume holds BOTH the SQLite database and uploaded
+# files, so nothing is lost on redeploy — no separate database or object store
+# to wire up for launch.
+#
+#   fly launch --no-deploy --copy-config   # creates the app
+#   fly volumes create pman_data --size 1
+#   fly secrets set JWT_SECRET="$(openssl rand -base64 48)"
+#   fly deploy
+#
+# Change `app` to the name Fly assigns you.
+app = "pman-api"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "4000"
+  DATABASE_URL = "file:/data/pman.db"
+  UPLOADS_DIR = "/data/uploads"
+  # Browser origins allowed to call the API. The native app is unaffected
+  # (it sends no Origin header). Add your Pages URL if you want the web build
+  # to talk to this API: "https://d3d34d.github.io"
+  CORS_ORIGIN = ""
+
+# JWT_SECRET is NOT set here — it is a secret:
+#   fly secrets set JWT_SECRET="$(openssl rand -base64 48)"
+
+[[mounts]]
+  source = "pman_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # SQLite on a single volume means exactly one writer: never scale past 1.
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

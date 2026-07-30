@@ -1,6 +1,8 @@
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
+import { useEffect, useRef } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { DEMO } from '@/lib/api'
+import { api, DEMO } from '@/lib/api'
+import { useAuth, type User } from '@/lib/auth'
 import { colors } from '@/lib/theme'
 import { Body, Muted, Screen, Spacer, Title } from '@/ui/kit'
 
@@ -44,7 +46,41 @@ function RoleCard({ glyph, title, subtitle, onPress }: { glyph: string; title: s
   )
 }
 
+/**
+ * Demo shortcut: `?as=manager` or `?as=tenant` signs straight in, so a shared
+ * link lands on the dashboard instead of a login form. Demo builds only —
+ * `DEMO` is false in every real build, so this cannot bypass a real login.
+ */
+function useDemoAutoLogin() {
+  const { as } = useLocalSearchParams<{ as?: string }>()
+  const { signIn } = useAuth()
+  const attempted = useRef(false)
+
+  useEffect(() => {
+    if (!DEMO || attempted.current) return
+    const role = as === 'manager' ? 'MANAGER' : as === 'tenant' ? 'TENANT' : null
+    if (!role) return
+    attempted.current = true
+    ;(async () => {
+      try {
+        const res = await api<{ token: string; user: User }>('/auth/login', {
+          method: 'POST',
+          body: {
+            email: role === 'MANAGER' ? 'manager@pman.dev' : 'tenant@pman.dev',
+            password: 'password123',
+          },
+        })
+        await signIn(res.token, res.user)
+        router.replace(role === 'MANAGER' ? '/dashboard' : '/home')
+      } catch {
+        // Fall through to the normal chooser.
+      }
+    })()
+  }, [as, signIn])
+}
+
 export default function Welcome() {
+  useDemoAutoLogin()
   return (
     <Screen>
       <Spacer h={40} />

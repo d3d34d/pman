@@ -10,7 +10,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "start:prod": "prisma migrate deploy && tsx src/server.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
@@ -21,13 +23,14 @@
     "@prisma/client": "^6.2.1",
     "bcryptjs": "^2.4.3",
     "fastify": "^5.2.0",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2"
   },
+  "//deps": "prisma and tsx are runtime dependencies, not dev: the production container runs `prisma migrate deploy` on boot and executes the TypeScript entrypoint directly.",
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.5",
-    "prisma": "^6.2.1",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1024px; height: 500px; overflow: hidden; }
+  body {
+    display: flex; align-items: center; gap: 54px; padding: 0 64px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 52%, #3b82f6 100%);
+    color: #fff; position: relative;
+  }
+  /* soft depth */
+  body::after {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(680px 420px at 78% 18%, rgba(255,255,255,.16), transparent 62%);
+  }
+  .left { position: relative; z-index: 1; width: 560px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+    padding: 7px 15px; border-radius: 999px;
+    font-size: 15px; font-weight: 600; letter-spacing: .3px; margin-bottom: 20px;
+  }
+  h1 { font-size: 60px; line-height: 1.03; font-weight: 800; letter-spacing: -1.6px; }
+  h1 .accent { color: #bfdbfe; }
+  p.sub { font-size: 22px; line-height: 1.4; margin-top: 16px; color: #e0ecff; font-weight: 450; }
+  ul { list-style: none; display: flex; gap: 10px; margin-top: 26px; flex-wrap: wrap; }
+  li {
+    background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22);
+    padding: 8px 14px; border-radius: 9px; font-size: 15.5px; font-weight: 600;
+  }
+  /* phone */
+  .right { position: relative; z-index: 1; flex: 1; display: flex; justify-content: center; }
+  .phone {
+    width: 262px; height: 428px; background: #0f172a; border-radius: 34px;
+    padding: 9px; box-shadow: 0 30px 70px rgba(2,10,40,.45); transform: rotate(-3deg);
+  }
+  .screen { width: 100%; height: 100%; background: #f4f6fa; border-radius: 26px; overflow: hidden; }
+  .hdr { background: #fff; padding: 13px 14px 11px; border-bottom: 1px solid #e6eaf1; }
+  .hdr .hi { font-size: 14.5px; font-weight: 800; color: #14203a; }
+  .hdr .mo { font-size: 10.5px; color: #7c879b; margin-top: 1px; }
+  .body { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .stats { display: flex; gap: 7px; }
+  .stat { flex: 1; background: #fff; border: 1px solid #e6eaf1; border-radius: 9px; padding: 8px 7px; }
+  .stat .l { font-size: 8px; color: #7c879b; font-weight: 600; }
+  .stat .v { font-size: 15px; font-weight: 800; margin-top: 2px; color: #14203a; }
+  .stat .v.g { color: #15803d; }
+  .stat .v.r { color: #b91c1c; }
+  .row {
+    background: #fff; border: 1px solid #e6eaf1; border-radius: 9px;
+    padding: 8px 9px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .row .n { font-size: 10.5px; font-weight: 700; color: #14203a; }
+  .row .u { font-size: 8.5px; color: #7c879b; margin-top: 1px; }
+  .pill { font-size: 8px; font-weight: 800; padding: 3px 7px; border-radius: 999px; }
+  .paid { background: #dcfce7; color: #15803d; }
+  .late { background: #fee2e2; color: #b91c1c; }
+  .part { background: #fef3c7; color: #a16207; }
+  .sect { font-size: 8.5px; font-weight: 800; color: #8b95a8; letter-spacing: .7px; margin: 3px 0 0 2px; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="badge">🏠 PMAN</div>
+    <h1>Rent, tracked.<br /><span class="accent">Finally simple.</span></h1>
+    <p class="sub">Property management and a tenant portal — in one app.</p>
+    <ul>
+      <li>Who paid, who didn’t</li>
+      <li>Leases &amp; rent changes</li>
+      <li>Maintenance</li>
+    </ul>
+  </div>
+
+  <div class="right">
+    <div class="phone"><div class="screen">
+      <div class="hdr">
+        <div class="hi">Hi Riley</div>
+        <div class="mo">July at a glance</div>
+      </div>
+      <div class="body">
+        <div class="stats">
+          <div class="stat"><div class="l">COLLECTED</div><div class="v g">$5,250</div></div>
+          <div class="stat"><div class="l">OUTSTANDING</div><div class="v r">$2,400</div></div>
+        </div>
+        <div class="sect">RENT ROLL</div>
+        <div class="row"><div><div class="n">Aisha Rahman</div><div class="u">Maple Court · 1A</div></div><div class="pill paid">PAID</div></div>
+        <div class="row"><div><div class="n">Marcus Bell</div><div class="u">Maple Court · 1B</div></div><div class="pill late">LATE</div></div>
+        <div class="row"><div><div class="n">Sofia Marino</div><div class="u">Maple Court · 2A</div></div><div class="pill part">PARTIAL</div></div>
+        <div class="row"><div><div class="n">Emily Chen</div><div class="u">Oakwood · Left</div></div><div class="pill paid">PAID</div></div>
+        <div class="row"><div><div class="n">David Okafor</div><div class="u">Maple Court · 2B</div></div><div class="pill paid">PAID</div></div>
+        <div class="sect">TO REVIEW</div>
+        <div class="row"><div><div class="n">$1,750 · Zelle</div><div class="u">Emily Chen — proof attached</div></div><div class="pill part">PENDING</div></div>
+      </div>
+    </div></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+apps/mobile/dist
+apps/mobile/.expo
+apps/mobile/android
+apps/mobile/ios
+apps/api/uploads
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+.git
+.github
+*.log
+.DS_Store
+store/

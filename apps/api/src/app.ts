@@ -42,7 +42,21 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   const payments = opts.paymentProvider ?? createPaymentProvider()
   const notifiers = opts.notifiers ?? createNotifiers()
 
-  await app.register(cors, { origin: true })
+  // Native apps send no Origin header, so CORS never gates them — it only
+  // gates browsers. In production we therefore allow just the web origins
+  // named in CORS_ORIGIN (comma-separated) instead of reflecting any site.
+  const allowedOrigins = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean)
+  const isProduction = process.env.NODE_ENV === 'production'
+  await app.register(cors, {
+    origin(origin, cb) {
+      if (!origin) return cb(null, true) // native app, curl, health checks
+      if (allowedOrigins.length === 0) return cb(null, !isProduction) // dev: anything
+      cb(null, allowedOrigins.includes(origin))
+    },
+  })
   await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 1 } })
   if (opts.rateLimit !== false) {
     await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
