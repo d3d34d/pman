@@ -1,198 +1,335 @@
-# Shipping PMAN to Google Play
+# PMAN → Google Play: the complete guide
 
-Everything in the repo is release-ready. What remains needs **your** accounts and
-card, so it can't be automated from here. Work top to bottom — each step is
-verifiable before you move on.
+Every command, every prompt, in order. Nothing is assumed.
 
-**Realistic time:** ~2 hours of work, then 1–7 days waiting on Google's first review.
-**Cost:** $25 one-off (Play Console) + ~$0–5/month (API hosting).
-
----
-
-## The one thing that matters most
-
-A downloaded app has no dev server to talk to. **The API must be live on a public
-HTTPS URL before you build the APK/AAB.** The app now refuses to produce a working
-release without `EXPO_PUBLIC_API_URL` rather than silently pointing at `localhost`,
-so do step 1 first.
+**You'll spend:** ~2 hours hands-on.
+**You'll wait:** 1–7 days for review — **or ~14 days** if Google requires closed
+testing first (see Part 0).
+**You'll pay:** ~$0–3/month for hosting. Play Console you already have.
 
 ---
 
-## Step 1 — Put the API online
+## Part 0 — Read this first
 
-The API ships with a `Dockerfile` and `fly.toml`. Fly is suggested because a single
-$0–3/month volume holds **both** the database and uploaded files, so nothing is lost
-on redeploy. Any Docker host works.
+### The 12-tester rule
+
+If your Play Console is a **personal** account created after **13 November 2023**,
+Google requires a **closed test with at least 12 testers, opted in and running for
+14 continuous days**, before you may apply for production access.
+
+- **Organisation/company accounts are exempt** — they can go straight to production.
+- Check: Play Console → **Settings → Developer account → Account details** → look at
+  *Account type* and *Date created*.
+
+If it applies, plan for it: line up 12 people (friends, family, a Discord/Reddit
+group) with Google accounts. They must **install from the closed-testing link and
+stay opted in** for the full 14 days. Start this as early as possible — it runs in
+parallel with everything else.
+
+### What you need
+
+| Thing | Cost | Notes |
+|---|---|---|
+| Google Play Console | ✅ you have it | |
+| Fly.io account | free tier, card required | hosts the API |
+| Expo account | free | builds the app |
+| Homebrew | free | to install `flyctl` |
+
+You do **not** need Docker or Android Studio — Fly builds the image on their
+servers, and EAS builds the app on theirs.
+
+---
+
+## Part 1 — Put the API online
+
+Nothing else works until this does. A downloaded app has no dev server; it needs a
+public HTTPS address.
+
+### 1.1 Install and sign in
 
 ```bash
-# one-time
-brew install flyctl && fly auth signup
+brew install flyctl
+fly auth signup     # already have an account? fly auth login
+```
 
-fly launch --no-deploy --copy-config     # keep the app name it offers, or edit fly.toml
-fly volumes create pman_data --size 1    # 1 GB: database + uploads
+### 1.2 Create the app
+
+From the **repo root** (`~/PMAN`):
+
+```bash
+fly launch --no-deploy --copy-config
+```
+
+What it asks:
+
+| Prompt | Answer |
+|---|---|
+| "Would you like to tweak these settings…?" | **No** (`fly.toml` is already correct) |
+| App name | `pman-api` is likely taken — accept the generated name |
+| Region | pick the one nearest you, **and remember it** |
+| Postgres / Redis / Tigris? | **No** to all — SQLite lives on your volume |
+
+Open `fly.toml` and check two lines match what you chose:
+
+```toml
+app = "your-actual-app-name"
+primary_region = "iad"          # ← must match the region you picked
+```
+
+### 1.3 Create the storage volume
+
+This holds the database **and** every uploaded file. Without it, each deploy wipes
+your users' data.
+
+```bash
+fly volumes create pman_data --size 1 --region iad
+```
+
+Use *your* region. It warns that single volumes aren't redundant — that's expected,
+answer **yes**.
+
+### 1.4 Set the signing secret
+
+```bash
 fly secrets set JWT_SECRET="$(openssl rand -base64 48)"
+```
+
+The server refuses to boot in production without this. You never need to see it.
+
+### 1.5 Deploy
+
+```bash
 fly deploy
 ```
 
-Confirm it's alive — this must return `{"ok":true,...}`:
+First build takes 3–5 minutes. Fly uses a remote builder, so no local Docker needed.
+
+### 1.6 Confirm it's alive
 
 ```bash
 curl https://YOUR-APP.fly.dev/health
 ```
 
-Create the accounts Google's reviewer will use (and your own first login):
+Must print:
+
+```json
+{"ok":true,"paymentProvider":"MOCK"}
+```
+
+If it doesn't, run `fly logs` and see [Troubleshooting](#troubleshooting).
+
+### 1.7 Create the demo accounts
+
+Google's reviewer needs to log in, and you need a first account:
 
 ```bash
 fly ssh console -C "npm --prefix /app/apps/api run seed"
 ```
 
-> **Careful:** `seed` wipes and reloads demo data. Run it once, before you have real
-> users, and never again on a live database.
+> ⚠️ **Once only.** `seed` wipes the database and reloads sample data. Never run it
+> again after you have real users.
 
-<details>
-<summary>Prefer Render / Railway / a VPS?</summary>
+Verify a real login works:
 
-Point the host at the repo's `Dockerfile` (build context = repo root) and set:
+```bash
+curl -X POST https://YOUR-APP.fly.dev/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"manager@pman.dev","password":"password123"}'
+```
 
-| Variable | Value |
-|---|---|
-| `JWT_SECRET` | 32+ random chars — the server refuses to boot without it |
-| `DATABASE_URL` | `file:/data/pman.db` on a **persistent disk** |
-| `UPLOADS_DIR` | `/data/uploads` on the same disk |
-| `NODE_ENV` | `production` |
-| `CORS_ORIGIN` | *(optional)* browser origins allowed to call the API |
-
-Without a persistent disk, every deploy deletes your users' data. For real scale,
-switch `provider = "sqlite"` to `"postgresql"` in `apps/api/prisma/schema.prisma`
-and point `DATABASE_URL` at a managed Postgres.
-</details>
+A long `{"token":"eyJ..."}` means the API is fully working. **Send me this URL and
+I'll verify it end to end.**
 
 ---
 
-## Step 2 — Point the app at that URL
+## Part 2 — Point the app at your API
 
-Edit **`apps/mobile/eas.json`** and replace both placeholders with your real host:
+Edit `apps/mobile/eas.json` and replace **both** placeholders:
 
 ```jsonc
 "preview":    { "env": { "EXPO_PUBLIC_API_URL": "https://YOUR-APP.fly.dev" } },
 "production": { "env": { "EXPO_PUBLIC_API_URL": "https://YOUR-APP.fly.dev" } }
 ```
 
-No trailing slash. It must be `https://` — Android blocks plaintext HTTP in release
-builds, which is the correct default.
+Rules: `https://`, **no trailing slash**. Android blocks plaintext HTTP in release
+builds, which is correct behaviour.
 
 ---
 
-## Step 3 — Build a real APK and test it on your phone
+## Part 3 — Build a test APK and try it on your phone
 
 ```bash
-npm install -g eas-cli
-eas login                       # free Expo account
-eas build:configure             # links the project, once
-
-eas build --platform android --profile preview   # installable APK
+eas login              # eas-cli is already installed
+eas build:configure    # links the project; choose Android. Run once.
 ```
 
-EAS generates and stores your **upload keystore** on the first build. Back it up —
-losing it means you can never update the app under the same listing:
+`build:configure` adds a project ID to `app.json` — commit that change.
 
 ```bash
-eas credentials   # → Android → Keystore → Download
+eas build --platform android --profile preview
 ```
 
-Install the APK on your phone from the link EAS prints, then check:
+Free-tier builds queue; 10–30 minutes is normal. EAS prints a QR code and URL when
+done — open it on your phone and install (allow "install from unknown sources").
 
-- [ ] Manager login works against the live API
-- [ ] Tenant login works
-- [ ] A tenant can submit a payment **with a screenshot**
-- [ ] The manager sees it under Payment approvals and can approve it
-- [ ] Notifications arrive
-- [ ] Killing and reopening the app keeps you signed in
+### 3.1 Back up your keystore — do not skip
 
-If anything fails here it will fail for Google too. Fix before continuing.
+EAS created the signing key on that first build. **Lose it and you can never update
+your app under the same listing, ever.**
 
-> Building locally instead of on EAS needs the Android SDK and **JDK 17 or 21** —
-> Android Gradle does not support JDK 25, which is what's installed on this machine.
-> EAS sidesteps that entirely.
+```bash
+eas credentials
+# → Android → production → Keystore → Download
+```
+
+Store the downloaded file somewhere safe and permanent.
+
+### 3.2 Test on the real device
+
+Work through all of these against the live API:
+
+- [ ] Manager login (`manager@pman.dev` / `password123`)
+- [ ] Dashboard shows real numbers
+- [ ] Log out, log in as tenant (`tenant@pman.dev`)
+- [ ] Tenant submits a payment **with a screenshot attached**
+- [ ] Log back in as manager → Payment approvals shows it → **Approve**
+- [ ] Tenant sees it approved, with a receipt
+- [ ] Force-close the app, reopen — still signed in
+- [ ] Turn off Wi-Fi and mobile data → you get "Can't reach the server", not a crash
+
+Anything failing here fails for Google too. Fix before continuing.
 
 ---
 
-## Step 4 — Build the release bundle
+## Part 4 — Fill in Play Console
 
-```bash
-eas build --platform android --profile production   # .aab for Play
-```
+You can do all of this **before** you have a release. In Play Console:
+**Create app** → name `PMAN`, English (US), **App**, **Free**, accept declarations.
 
-`autoIncrement` bumps `versionCode` on every production build, so you never hit
-"version code already used".
+Then work down the "Set up your app" checklist:
 
----
-
-## Step 5 — Play Console
-
-1. Pay the **$25** one-off fee at <https://play.google.com/console> and verify your
-   identity (Google may ask for ID; this can take a day or two — start early).
-2. **Create app** → name `PMAN`, English, App, Free.
-3. Fill these in — all the copy is written for you:
-
-| Console section | Source |
+| Task | Where the content is |
 |---|---|
-| Main store listing (name, descriptions, graphics) | [`store/play-listing.md`](store/play-listing.md) |
-| Feature graphic, icon, screenshots | [`store/assets/`](store/assets/) |
-| Data safety | [`store/play-data-safety.md`](store/play-data-safety.md) |
-| Privacy policy URL | `https://d3d34d.github.io/pman/privacy.html` |
-| App access (reviewer logins) | bottom of `store/play-listing.md` |
-| Content rating | questionnaire → Business/Utility, expect *Everyone* |
-| Target audience | 18+ |
-| Ads | No ads |
-| Financial features | **None** — the app records payments, it never moves money |
+| App access | bottom of [`store/play-listing.md`](store/play-listing.md) — reviewer logins |
+| Ads | **No, my app does not contain ads** |
+| Content rating | questionnaire → Utility/Business; answer No to everything sensitive |
+| Target audience | **18+** |
+| News app | No |
+| Data safety | [`store/play-data-safety.md`](store/play-data-safety.md) — follow it field by field |
+| Government apps | No |
+| Financial features | **My app doesn't have any financial features** |
+| Health | No |
+| Privacy policy | `https://d3d34d.github.io/pman/privacy.html` |
 
-4. **Testing → Internal testing** → upload the `.aab` → add your own email as a
-   tester → install from the Play link and re-run the step 3 checklist. Do not skip
-   this; it is the only way to catch a Play-signed build behaving differently.
-5. **Production → Create new release** → upload the same `.aab` → roll out.
+Then **Store presence → Main store listing**, from
+[`store/play-listing.md`](store/play-listing.md):
 
-First review typically takes 1–7 days. New developer accounts are sometimes held
-longer.
-
----
-
-## Step 6 — After it's live
-
-- **Updates:** bump nothing by hand — `eas build --profile production`, then upload.
-- **Over-the-air fixes:** `eas update --branch production` pushes JS-only changes in
-  minutes without a Play review. Native or config changes still need a new build.
-- **Back up the database.** Fly volumes are not backups:
-  ```bash
-  fly ssh console -C "cat /data/pman.db" > backup-$(date +%F).db
-  ```
-- **Watch it:** `fly logs`.
-
----
-
-## Things that will get you rejected
-
-| Problem | Fix |
+| Field | Value |
 |---|---|
-| Reviewer can't log in | Seed the demo accounts on the **production** API and put them in App access |
-| Privacy policy URL 404s | Confirm `https://d3d34d.github.io/pman/privacy.html` loads |
-| Data safety contradicts the app | Use `store/play-data-safety.md` verbatim — it matches the code |
-| App points at `localhost` | You skipped step 2 |
-| Crash on launch | You skipped step 3 |
-| No account deletion | Already built in (More/Account → Delete account) — just declare it |
+| App name | `PMAN — Property Management` |
+| Short description | the 73-character line |
+| Full description | the long block |
+| App icon | `store/assets/play-icon-512.png` |
+| Feature graphic | `store/assets/feature-graphic.png` |
+| Phone screenshots | all 6 in `store/assets/screenshots/` |
+
+**Store settings** → Category **Business**, contact email, website
+`https://d3d34d.github.io/pman/`.
+
+> **Financial features must be "none".** The app records payments made elsewhere; it
+> never moves money or touches card details. Ticking anything here drags you into
+> Play's financial-services policy and can require licensing evidence.
 
 ---
 
-## What's already done for you
+## Part 5 — Build the release and go to testing
 
-- ✅ Release-safe API URL handling (fails loudly instead of silently using localhost)
-- ✅ Human-readable network errors instead of "Network request failed"
-- ✅ `Dockerfile`, `fly.toml`, `.env.example`, graceful shutdown, `/health`
-- ✅ Real database migrations (`prisma migrate deploy`) instead of dev-only `db push`
-- ✅ Uploads and database on one persistent volume
-- ✅ CORS locked to an allowlist in production
-- ✅ Privacy policy, published with the web build
-- ✅ Data safety answers matching the actual schema
-- ✅ Listing copy, feature graphic, icon, 6 phone screenshots (`npm run store:assets`)
-- ✅ In-app account deletion, JWT expiry + revocation, bcrypt, rate limiting, signed file URLs
-- ✅ 76 passing API tests
+```bash
+eas build --platform android --profile production
+```
+
+That produces an `.aab` (Play's required format). `autoIncrement` bumps the version
+code automatically, so you'll never hit "version code already used".
+
+### Internal testing (always do this)
+
+**Testing → Internal testing → Create new release** → upload the `.aab` → add your
+own email as a tester → install from the Play link → **re-run the Part 3.2
+checklist**. This is the only way to catch a Play-signed build misbehaving.
+
+### Closed testing (if the 12-tester rule applies to you)
+
+**Testing → Closed testing → Create track** → upload the same `.aab` → add your 12+
+testers by email → send them the opt-in link.
+
+They must install and stay opted in for **14 continuous days**. Track the countdown
+in Play Console; when it completes you'll be offered **Apply for production access**.
+
+### Production
+
+**Production → Create new release** → upload the `.aab` → write release notes →
+**Start rollout to Production**.
+
+First review is usually 1–7 days; new accounts sometimes take longer.
+
+---
+
+## Part 6 — After it's live
+
+**Ship a JS-only fix in minutes, no review:**
+```bash
+eas update --branch production --message "Fix rent roll date"
+```
+
+**Ship a real update** (native changes, new permissions, version bump):
+```bash
+eas build --platform android --profile production
+# then upload to a new Production release
+```
+
+**Back up your database — Fly volumes are not backups:**
+```bash
+fly ssh console -C "cat /data/pman.db" > backup-$(date +%F).db
+```
+Do this weekly, or before any risky change.
+
+**Watch it:** `fly logs` · **Restart:** `fly apps restart YOUR-APP`
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| `/health` doesn't respond | `fly logs`. Usually `JWT_SECRET` missing → step 1.4 |
+| `Error: Volume not found` | Volume name must be exactly `pman_data`, in the app's region |
+| Deploy OK, but data vanishes | `[[mounts]]` missing from `fly.toml`, or volume in the wrong region |
+| App shows "Can't reach the server" | `EXPO_PUBLIC_API_URL` wrong/missing → Part 2, then **rebuild** (env is baked in at build time) |
+| Login fails on device but curl works | You built before setting the URL. Rebuild. |
+| `fly ssh console` hangs | Machine is asleep. `curl .../health` to wake it, then retry |
+| EAS build fails on credentials | `eas credentials` → let EAS generate a new keystore (only safe **before** first publish) |
+| Play: "Upload a privacy policy" | Paste the URL into **App content → Privacy policy**, not just the listing |
+| Play: "Your app targets an old API level" | Not applicable — Expo SDK 54 targets API 35 |
+| Rejected: reviewer couldn't log in | The demo accounts must exist on your **production** API (step 1.7) and be listed under App access |
+
+---
+
+## Quick reference
+
+```bash
+# API
+fly deploy                      # ship API changes
+fly logs                        # tail logs
+fly status                      # is it up?
+fly secrets list                # what's set (values hidden)
+
+# App
+eas build -p android --profile preview      # testable APK
+eas build -p android --profile production   # .aab for Play
+eas update --branch production              # instant JS-only fix
+eas credentials                             # keystore backup
+
+# Local
+npm test                        # 76 API tests
+npm run store:assets            # regenerate all store graphics
+```
