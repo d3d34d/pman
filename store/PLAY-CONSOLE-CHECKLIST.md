@@ -14,7 +14,8 @@ Tick as you go. Nothing here needs another document open.
 
 | Field | Value |
 |---|---|
-| App name | `PMAN: Rent & Property Manager` |
+| App name | `PMAN: Your Property Manager` |
+| Package name | `com.pman` — **permanent, can never be changed** |
 | Default language | English (United States) |
 | App or game | **App** |
 | Free or paid | **Free** *(cannot be changed to paid later)* |
@@ -61,6 +62,19 @@ https://d3d34d.github.io/pman/ if that is easier to inspect.
 
 ### 1.3 Ads
 - [ ] **No, my app does not contain ads**
+
+### 1.3b Advertising ID *(Play blocks release without this)*
+
+**App content → Advertising ID**
+
+- [ ] **No, my app does not use advertising ID**
+
+Verified against the built bundle: the manifest contains **no**
+`com.google.android.gms.permission.AD_ID` permission, and the app has no ads,
+analytics or attribution SDKs. So "No" is the correct and truthful answer.
+
+> If you ever answer "Yes" here, Play then requires the `AD_ID` permission to be
+> declared in the manifest — the two must agree or the release is rejected.
 
 ### 1.4 Content rating
 Start questionnaire.
@@ -122,7 +136,7 @@ app interactions, crash logs, purchase history, **payment info**, device IDs.
 
 ### App name (30 max)
 ```
-PMAN: Rent & Property Manager
+PMAN: Your Property Manager
 ```
 
 ### Short description (80 max)
