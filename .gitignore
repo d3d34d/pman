@@ -24,3 +24,6 @@ apps/mobile/android/.cxx/
 
 # Local database backups — never commit real user data
 backups/
+
+# Local backups: production data + secrets. NEVER commit (this repo is public).
+Backup/
