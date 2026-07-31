@@ -279,10 +279,23 @@ First review is usually 1–7 days; new accounts sometimes take longer.
 
 ## Part 6 — After it's live
 
-**Ship a JS-only fix in minutes, no review:**
+**Ship a JS-only fix in minutes, no review** — requires a one-time setup, because
+`expo-updates` is not installed in this project yet:
+
+```bash
+npx expo install expo-updates
+eas update:configure
+eas build --platform android --profile production   # OTA needs a build that includes it
+```
+
+After that, and only after users are on a build containing `expo-updates`:
+
 ```bash
 eas update --branch production --message "Fix rent roll date"
 ```
+
+> Until you do this, `eas update` will not reach anyone — the current build has no
+> updates client, so every change needs a new build and a Play release.
 
 **Ship a real update** (native changes, new permissions, version bump):
 ```bash
@@ -329,7 +342,7 @@ fly secrets list                # what's set (values hidden)
 # App
 eas build -p android --profile preview      # testable APK
 eas build -p android --profile production   # .aab for Play
-eas update --branch production              # instant JS-only fix
+eas update --branch production              # JS-only fix (needs expo-updates first)
 eas credentials                             # keystore backup
 
 # Local
