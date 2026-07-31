@@ -21,3 +21,6 @@ apps/mobile/android/.cxx/
 *.aab
 *.keystore
 !debug.keystore
+
+# Local database backups — never commit real user data
+backups/

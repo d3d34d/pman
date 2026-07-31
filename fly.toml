@@ -38,8 +38,10 @@ primary_region = "ord"
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  # SQLite on a single volume means exactly one writer: never scale past 1.
-  min_machines_running = 0
+  # Production: keep one machine warm so real users (and Play reviewers) never
+  # hit a cold start. SQLite on a single volume means exactly one writer —
+  # never scale this above 1 without moving to Postgres first.
+  min_machines_running = 1
 
   [http_service.concurrency]
     type = "requests"
