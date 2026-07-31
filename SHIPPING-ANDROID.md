@@ -45,6 +45,9 @@ servers, and EAS builds the app on theirs.
 Nothing else works until this does. A downloaded app has no dev server; it needs a
 public HTTPS address.
 
+> **Full walkthrough:** [`DEPLOY-FLY.md`](DEPLOY-FLY.md) covers every prompt,
+> costs, backups, and troubleshooting. The steps below are the short version.
+
 ### 1.1 Install and sign in
 
 ```bash
