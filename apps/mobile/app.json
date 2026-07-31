@@ -60,6 +60,13 @@
     ],
     "experiments": {
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7e41a885-0506-4b0c-8c96-b16f884d2e96"
+      }
+    },
+    "owner": "rronyy004"
   }
 }
