@@ -308,6 +308,61 @@ Take a backup first (step 9). Deleting the app removes the volume with it.
 
 ---
 
+## Optional — smoke-test it in Expo Go before building
+
+Faster than waiting on an EAS build. The project targets **Expo SDK 54** so it
+runs in the standard Expo Go from the Play Store.
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env
+```
+
+Edit `apps/mobile/.env` and set your real URL:
+
+```bash
+EXPO_PUBLIC_API_URL="https://YOUR-APP.fly.dev"
+```
+
+Then:
+
+```bash
+npm run mobile          # scan the QR with Expo Go
+```
+
+Or without a file, as a one-off:
+
+```bash
+EXPO_PUBLIC_API_URL="https://YOUR-APP.fly.dev" npm run mobile
+```
+
+> Expo inlines this value when Metro bundles. If you change it, restart Metro —
+> `npx expo start --clear` if it seems stale. You do **not** need `npm run api`
+> running; the phone talks straight to Fly.
+
+### What this proves
+
+- ✅ Login against the live API, both roles
+- ✅ Real dashboard, rent roll and ledger numbers from your server
+- ✅ Submitting a payment **with a screenshot** (picker + upload to the volume)
+- ✅ Manager approving it and the ledger updating
+- ✅ Messages, maintenance, documents, CSV export
+- ✅ The in-app notification centre (it polls the API)
+
+### What it does NOT prove
+
+- ❌ **Remote push notifications** — Expo Go can't receive them on SDK 53+. Only a
+  dev build or the real APK can.
+- ❌ Release behaviour — Expo Go runs in dev mode, so the production-only guard
+  that requires `EXPO_PUBLIC_API_URL` never fires there.
+- ❌ Native config: permissions, adaptive icon, splash screen.
+- ❌ The actual signed artifact Google will review.
+
+So Expo Go is the fast way to confirm **your server integration is correct** — but
+still do the `--profile preview` APK test in
+[`SHIPPING-ANDROID.md`](SHIPPING-ANDROID.md) Part 3 before you submit.
+
+---
+
 ## Next
 
 Once `/health` and the login `curl` both work, go back to
