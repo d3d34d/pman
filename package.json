@@ -16,7 +16,8 @@
     "typecheck": "npm run typecheck --workspace apps/api && npm run typecheck --workspace apps/mobile",
     "seed": "npm run seed --workspace apps/api",
     "qr": "node scripts/make-qr.mjs",
-    "store:assets": "node store/src/build-assets.mjs"
+    "store:assets": "node store/src/build-assets.mjs",
+    "store:seo": "node store/src/keyword-density.mjs"
   },
   "devDependencies": {
     "qrcode": "^1.5.4"
