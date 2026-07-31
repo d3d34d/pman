@@ -11,7 +11,7 @@
 #
 # Change `app` to the name Fly assigns you.
 app = "pman-api"
-primary_region = "iad"
+primary_region = "ord"
 
 [build]
   dockerfile = "Dockerfile"

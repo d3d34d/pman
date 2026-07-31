@@ -18,7 +18,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-YOUR-API-HOST"
+        "EXPO_PUBLIC_API_URL": "https://pman-api.fly.dev"
       }
     },
     "production": {
@@ -28,7 +28,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-YOUR-API-HOST"
+        "EXPO_PUBLIC_API_URL": "https://pman-api.fly.dev"
       }
     }
   },
