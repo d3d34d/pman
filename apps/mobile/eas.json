@@ -1,7 +1,6 @@
 {
   "cli": {
     "version": ">= 12.0.0",
-    "//": "Local version source: versionCode lives in app.json, tracked in git and visible in diffs. Remote + autoIncrement silently produced versionCode 2 twice, which Play then rejected as already used. Bump android.versionCode by hand for every Play upload.",
     "appVersionSource": "local"
   },
   "build": {
