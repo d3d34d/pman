@@ -142,15 +142,15 @@ Built to track rent against real tenancies, not as a generic checklist:
 • Payments apply oldest-first, so partial payments and credits just work
 
 
-▸ RENT COLLECTION WITHOUT A PAYMENT PROCESSOR
+▸ RECORD RENT PAYMENTS, NO PROCESSOR NEEDED
 
 Tenants pay however they already do — bank transfer, Zelle, cash or cheque —
 then submit the amount, date and a screenshot as proof. You review it and
-approve it into the ledger in one tap, or reject it with a reason. Both sides
-get notified at every step.
+approve it into the ledger in one tap, or reject it with a reason. Every step
+is logged in the in-app notification centre for both sides.
 
 Rent collection stays in your control: no card processing, no payment fees and
-no waiting on a payout.
+nothing to wait on.
 
 
 ▸ LEASE MANAGEMENT AND TENANTS

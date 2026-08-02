@@ -207,7 +207,11 @@ only way to see a Play-signed build behave.
 - [ ] Tenant login
 - [ ] Tenant submits a payment **with a screenshot**
 - [ ] Manager approves it; ledger updates
-- [ ] **Push notification arrives** — this only works in a real build, never in Expo Go
+- [ ] **Notification centre updates** (More / Account → Notifications) — the
+      approval shows up there. **Remote push is NOT expected to work in v1** —
+      Firebase isn't configured yet, so `getExpoPushTokenAsync` fails silently.
+      Do not treat a missing push as a bug in this release.
+- [ ] Local rent reminders can be scheduled (tenant → Home → Rent reminders)
 - [ ] Force-close and reopen — still signed in
 - [ ] Aeroplane mode → "Can't reach the server", not a crash
 

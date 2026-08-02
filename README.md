@@ -106,7 +106,9 @@ The whole review loop is wired for **push** and **email**, both behind provider 
 
 Channels:
 
-- **Push** — Expo push to the user's registered devices (keyless). Each device registers its token on login (`POST /me/push-token`); both managers and tenants register. Note: Expo Go can't receive remote push on SDK 53+; it lights up in a dev/production build with an EAS `projectId`.
+- **Push** — Expo push to the user's registered devices. Each device registers its token on login (`POST /me/push-token`); both managers and tenants register. **Not enabled in v1:** Android delivery goes through FCM, and no `google-services.json` is configured, so `getExpoPushTokenAsync` fails and no token is ever registered — the failure is swallowed by design so it never blocks sign-in. To switch it on: create a Firebase project, add `android.googleServicesFile` to `app.json`, upload the FCM key via `eas credentials`, and rebuild. Expo Go can't receive remote push on SDK 53+ regardless.
+- **In-app notification centre** — works today with no configuration; it polls the API, so both sides see every payment event under More / Account → Notifications.
+- **Local rent reminders** — scheduled on the tenant's own device; unaffected by the above.
 - **Email** — defaults to a **console transport** that logs the message (so you can watch it work in dev with no account). For real delivery set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM` (Resend REST, no extra dependency). When a tenant has no portal account, the email falls back to their profile contact address.
 
 All notifications are best-effort and fire-and-forget: a failure never blocks or fails the underlying action.

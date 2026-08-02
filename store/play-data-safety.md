@@ -69,7 +69,7 @@ For **every** type below the answers to the shared columns are the same:
 |---|---|---|
 | App interactions | **No** | No analytics SDK |
 | Crash logs / diagnostics | **No** | Not wired up |
-| Device or other IDs | **No** | The Expo push token is a notification address, not an advertising or device identifier. If the reviewer form pushes you, declare it under *Device or other IDs → App functionality*, never Advertising. |
+| Device or other IDs | **No** | Remote push is not enabled in v1 (no Firebase config), so **no push token is ever obtained or sent to the server**. If you later switch FCM on, revisit this: an Expo push token is a notification address, not an advertising identifier — declare it under *Device or other IDs → App functionality*, never Advertising. |
 
 ### Location, Contacts, Calendar, Health, Audio, Browsing
 **Not collected** — none of these are accessed.
@@ -83,7 +83,7 @@ Declared in `apps/mobile/app.json`:
 | Permission | Why | What to tell the reviewer |
 |---|---|---|
 | `INTERNET` | Talks to the PMAN API | Core functionality |
-| `POST_NOTIFICATIONS` | Payment submitted / approved / declined alerts | User-facing transactional alerts only |
+| `POST_NOTIFICATIONS` | Local rent reminders the tenant schedules on their own device | User-facing, user-initiated. Remote push is not enabled in v1 (no Firebase config), so no push token is collected — see the Device IDs row above |
 | `READ_MEDIA_IMAGES` | Attach a payment screenshot or maintenance photo | Only invoked from an explicit "attach" tap; no library scanning |
 | `VIBRATE` | Notification haptics | Standard notification behaviour |
 
