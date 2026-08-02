@@ -32,6 +32,8 @@ const updateProfileSchema = z.object({
   name: z.string().min(1).max(120).trim().optional(),
   phone: z.string().max(40).nullable().optional(),
   email: emailSchema.optional(),
+  // Required only when changing the email — see the PATCH /me handler.
+  currentPassword: z.string().min(1).max(200).optional(),
 })
 
 function publicUser(user: { id: string; email: string; role: string; name: string; phone: string | null }) {
@@ -114,19 +116,33 @@ export default function authRoutes(db: DB) {
 
     app.patch('/me', { preHandler: [app.authenticate] }, async (request) => {
       const body = updateProfileSchema.parse(request.body)
-      if (body.email) {
+      const current = await db.user.findUnique({ where: { id: request.user.sub } })
+      if (!current) throw badRequest('User no longer exists')
+
+      // The email IS the login, and there is no password-reset flow. Without a
+      // password check, anyone with a momentary session (an unlocked phone, a
+      // leaked token) could move the account to their own address and lock the
+      // real owner out permanently — while redirecting every notification.
+      const changingEmail = body.email !== undefined && body.email !== current.email
+      if (changingEmail) {
+        if (!body.currentPassword) throw badRequest('Enter your current password to change your email')
+        if (!(await verifyPassword(body.currentPassword, current.passwordHash))) {
+          throw badRequest('Your current password is incorrect')
+        }
         const clash = await db.user.findFirst({ where: { email: body.email, id: { not: request.user.sub } } })
         if (clash) throw badRequest('That email is already in use')
       }
+
       const user = await db.user.update({
         where: { id: request.user.sub },
         data: {
           ...(body.name !== undefined ? { name: body.name } : {}),
           ...(body.phone !== undefined ? { phone: body.phone } : {}),
-          ...(body.email !== undefined ? { email: body.email } : {}),
+          ...(changingEmail ? { email: body.email, tokenVersion: { increment: 1 } } : {}),
         },
       })
-      return { user: publicUser(user) }
+      // Changing the login email revokes existing sessions, so hand back a fresh token.
+      return { user: publicUser(user), ...(changingEmail ? { token: app.signToken(user) } : {}) }
     })
 
     app.post('/auth/change-password', { preHandler: [app.authenticate] }, async (request) => {

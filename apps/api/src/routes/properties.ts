@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { idParam } from '../validation.js'
+import { cents, idParam } from '../validation.js'
 import { ownedProperty, ownedUnit } from '../guards.js'
 import type { DB } from '../db.js'
 
@@ -13,10 +13,10 @@ const propertyBody = z.object({
 
 const unitBody = z.object({
   label: z.string().min(1),
-  bedrooms: z.number().int().min(0).optional(),
+  bedrooms: z.number().int().min(0).max(100).optional(),
   bathrooms: z.number().min(0).optional(),
-  sqft: z.number().int().min(0).optional(),
-  marketRentCents: z.number().int().min(0).optional(),
+  sqft: z.number().int().min(0).max(1_000_000).optional(),
+  marketRentCents: cents.optional(),
   notes: z.string().optional(),
 })
 

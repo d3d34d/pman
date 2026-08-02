@@ -33,6 +33,17 @@ export default function PayScreen() {
   const subs = useQuery({ queryKey: ['payment-submissions'], queryFn: () => api<Submissions>('/portal/payment-submissions') })
 
   if (overview.isLoading || subs.isLoading) return <Screen><Loading /></Screen>
+
+  // Distinguish "the request failed" from "you have no lease". Showing the
+  // empty state on an error tells a tenant their lease or their submitted
+  // payment doesn't exist, which invites a duplicate submission.
+  if (overview.isError) {
+    return (
+      <Screen>
+        <EmptyState title="Can’t load your account" hint="Check your connection and pull to try again." />
+      </Screen>
+    )
+  }
   if (!overview.data?.lease) {
     return (
       <Screen>
@@ -62,7 +73,9 @@ export default function PayScreen() {
       <Button title="Submit a payment" onPress={() => router.push('/submit-payment')} />
 
       <SectionHeader title="Your submissions" />
-      {!subs.data || subs.data.submissions.length === 0 ? (
+      {subs.isError ? (
+        <EmptyState title="Couldn’t load your submissions" hint="They’re safe — pull to refresh and try again." />
+      ) : !subs.data || subs.data.submissions.length === 0 ? (
         <EmptyState title="Nothing submitted yet" hint="Tap “Submit a payment” after you’ve paid." />
       ) : (
         subs.data.submissions.map((s) => (

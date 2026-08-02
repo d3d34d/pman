@@ -63,6 +63,19 @@ export default function submissionRoutes(db: DB, signer: FileSigner, notifiers: 
         return { alreadyReviewed: true, status: submission.status }
       }
 
+      // Claim the submission FIRST with a guarded update. Without this, two
+      // concurrent approvals (two devices, or a retry) both pass the status
+      // check above and each write a Payment — crediting the tenant twice, with
+      // the second row orphaned and invisible to this screen.
+      const claimed = await db.paymentSubmission.updateMany({
+        where: { id: submission.id, status: 'PENDING' },
+        data: { status: 'APPROVED', reviewedAt: new Date() },
+      })
+      if (claimed.count === 0) {
+        const current = await db.paymentSubmission.findUnique({ where: { id: submission.id } })
+        return { alreadyReviewed: true, status: current?.status ?? 'APPROVED' }
+      }
+
       // Create the ledger payment and link it, retrying on the rare receipt clash.
       const payment = await (async () => {
         for (let attempt = 0; ; attempt++) {
@@ -88,7 +101,7 @@ export default function submissionRoutes(db: DB, signer: FileSigner, notifiers: 
 
       await db.paymentSubmission.update({
         where: { id: submission.id },
-        data: { status: 'APPROVED', reviewedAt: new Date(), paymentId: payment.id },
+        data: { paymentId: payment.id },
       })
       notifyTenantSubmissionReviewed(db, notifiers, submission.id).catch((e) =>
         app.log.error({ err: e }, 'notifyTenantSubmissionReviewed failed'),

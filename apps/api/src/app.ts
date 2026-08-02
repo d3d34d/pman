@@ -37,7 +37,15 @@ export type AppOptions = {
 }
 
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
-  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 1_000_000 })
+  const app = Fastify({
+    logger: opts.logger ?? false,
+    bodyLimit: 1_000_000,
+    // Behind Fly's proxy every request arrives from the proxy's address, so
+    // without this the rate limiter keys every user into ONE global bucket:
+    // a single attacker at 10 req/min could lock the whole world out of
+    // /auth/login, and ordinary concurrent users 429 each other.
+    trustProxy: true,
+  })
   const uploadsDir = opts.uploadsDir ?? path.resolve(process.cwd(), 'uploads')
   const payments = opts.paymentProvider ?? createPaymentProvider()
   const notifiers = opts.notifiers ?? createNotifiers()

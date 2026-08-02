@@ -46,7 +46,33 @@ async function payRent(leaseId: string, opts: { skipCurrent?: boolean; partialCu
   }
 }
 
+/**
+ * Refuses to run anywhere that looks like production. This script DELETES
+ * EVERY ROW before reloading sample data — running it once against a live
+ * database destroys every landlord's real records, irreversibly.
+ */
+function assertNotProduction(): void {
+  const url = process.env.DATABASE_URL ?? ''
+  const isLocalFile = url.startsWith('file:') && !url.includes('/data/')
+  const forced = process.argv.includes('--force')
+
+  if (process.env.NODE_ENV === 'production' && !forced) {
+    throw new Error(
+      'Refusing to seed: NODE_ENV=production. This wipes every table.\n' +
+        'If you are certain this database has no real data, re-run with --force.',
+    )
+  }
+  if (!isLocalFile && !forced) {
+    throw new Error(
+      `Refusing to seed: DATABASE_URL (${url || 'unset'}) is not a local file.\n` +
+        'This wipes every table. If you are certain, re-run with --force.',
+    )
+  }
+}
+
 async function main() {
+  assertNotProduction()
+
   // Wipe in dependency order
   await db.$transaction([
     db.note.deleteMany(),

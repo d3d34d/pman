@@ -1,4 +1,6 @@
 import { router } from 'expo-router'
+import { Linking } from 'react-native'
+import { PRIVACY_POLICY_URL } from '@/lib/legal'
 import { useAuth } from '@/lib/auth'
 import { useUnreadCount } from '@/lib/notifications-center'
 import { Body, Button, Card, Chip, ListRow, Muted, Row, Screen, SectionHeader, Spacer } from '@/ui/kit'
@@ -42,6 +44,7 @@ export default function MoreScreen() {
           router.replace("/welcome")
         }}
       />
+      <Button title="Privacy policy" variant="ghost" onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} />
       <Button title="Delete account" variant="ghost" onPress={() => router.push('/settings/delete-account')} />
     </Screen>
   )

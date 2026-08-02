@@ -121,7 +121,9 @@ export default function tenantRoutes(db: DB) {
         reply.code(400)
         return { error: 'This tenant already has a portal account' }
       }
-      const code = randomBytes(4).toString('hex').toUpperCase()
+      // 16 bytes, not 4: an 8-hex-char code is only 2^32 and redeeming one
+      // hands over a tenant's full ledger, documents and messages.
+      const code = randomBytes(16).toString('base64url').toUpperCase()
       const invite = await db.invite.create({
         data: {
           code,

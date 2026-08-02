@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { idParam } from '../validation.js'
+import { cents, idParam } from '../validation.js'
 import { ownedMaintenance, ownedUnit } from '../guards.js'
 import type { DB } from '../db.js'
 
@@ -16,7 +16,7 @@ const patchBody = z.object({
   status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED']).optional(),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional(),
   vendorName: z.string().optional(),
-  costCents: z.number().int().min(0).optional(),
+  costCents: cents.optional(),
 })
 
 export default function maintenanceRoutes(db: DB) {

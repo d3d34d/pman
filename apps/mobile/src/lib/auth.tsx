@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store'
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
-import { api, setApiToken } from './api'
+import { api, ApiError, setApiToken } from './api'
 
 export type User = {
   id: string
@@ -60,11 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (token && storedUser && !cancelled) {
           setApiToken(token)
           setUser(JSON.parse(storedUser))
-          // Refresh the profile in the background; sign out on a dead token.
+          // Refresh the profile in the background. Only sign out when the
+          // server actually rejects the token — a network failure (no signal,
+          // server down) must NOT log someone out of their own app.
           api<{ user: User }>('/me')
             .then((res) => !cancelled && setUser(res.user))
-            .catch(() => {
-              if (!cancelled) {
+            .catch((e: unknown) => {
+              const rejected = e instanceof ApiError && (e.status === 401 || e.status === 403)
+              if (!cancelled && rejected) {
                 setApiToken(null)
                 setUser(null)
                 storage.remove(TOKEN_KEY)

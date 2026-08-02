@@ -121,7 +121,13 @@ export async function applyLateFees(db: DB, leaseId: string, asOf: Date): Promis
   })
   if (!lease || lease.lateFeeCents <= 0) return
 
-  const allocated = allocatePayments(lease.charges, lease.payments)
+  // Decide "is this month's rent covered?" against RENT/OTHER charges only.
+  // Including LATE_FEE rows in this allocation makes an unpaid fee shift the
+  // FIFO pool, leaving every later month short by exactly the fee — which earns
+  // another fee. One late month would then compound fees forever, even while
+  // the tenant pays full rent on time every month afterwards.
+  const nonFeeCharges = lease.charges.filter((c) => c.type !== 'LATE_FEE')
+  const allocated = allocatePayments(nonFeeCharges, lease.payments)
   const feePeriods = new Set(lease.charges.filter((c) => c.type === 'LATE_FEE').map((c) => c.period))
 
   for (const c of allocated) {

@@ -84,9 +84,22 @@ Start questionnaire.
 | Email | `rronyy001@gmail.com` |
 | Category | **Utility, Productivity, Communication or Other** |
 
-Answer **No** to every question — violence, sexuality, language, controlled
-substances, gambling, user interaction, sharing location, personal info sharing,
-digital purchases. Expected result: **Everyone / PEGI 3**.
+Answer **No** to: violence, sexuality, language, controlled substances,
+gambling, digital purchases, **sharing location**.
+
+Answer **YES** to these two — the app really does have them, and answering "No"
+would be a false declaration that a reviewer can disprove by opening the
+Messages tab:
+
+| Question | Answer | Why |
+|---|---|---|
+| Can users interact or communicate with each other? | **Yes** | Tenant ↔ manager messaging and property announcements |
+| Can users share personal information with other users? | **Yes** | A tenant's name, email and phone are visible to their manager |
+
+Expected result: still a low rating (**Everyone / PEGI 3**) with a
+*"Users Interact"* descriptor. Being truthful here costs you nothing; a false
+IARC answer can invalidate the rating or trigger account-level enforcement.
+
 - [ ] Submitted
 
 ### 1.5 Target audience and content

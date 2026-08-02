@@ -84,7 +84,11 @@ export default function portalRoutes(db: DB, uploadsDir: string, provider: Payme
       }
 
       // Autopay is charged on demand. A scheduler would also call this.
-      const autopayRun = await processAutopay(db, provider, active.id, now)
+      // Skipped entirely unless card payments are switched on (see below).
+      const autopayRun =
+        process.env.ENABLE_CARD_PAYMENTS === '1'
+          ? await processAutopay(db, provider, active.id, now)
+          : { status: 'skipped' as const }
 
       const finance = await getLeaseFinance(db, active.id, { asOf: now })
       const current = periodStatusOf(finance, period, active.graceDays, now)
@@ -176,7 +180,12 @@ export default function portalRoutes(db: DB, uploadsDir: string, provider: Payme
     })
 
     // --- payment methods --------------------------------------------------
-
+    // Card handling is DEFERRED and OFF unless ENABLE_CARD_PAYMENTS=1. The
+    // shipped app has no card UI, and the Play data-safety declaration and
+    // privacy policy both state that no card or bank credentials are handled —
+    // so these routes must not be reachable in production, where they would
+    // accept a real PAN into a mock gateway.
+    if (process.env.ENABLE_CARD_PAYMENTS === '1') {
     app.get('/portal/payment-methods', async (request) => {
       const profile = await tenantProfileOf(db, request.user.sub)
       const methods = await db.paymentMethod.findMany({
@@ -334,6 +343,8 @@ export default function portalRoutes(db: DB, uploadsDir: string, provider: Payme
       })
       return { autopay: { enabled: autopay.enabled, lastRunPeriod: autopay.lastRunPeriod, method: publicMethod(autopay.paymentMethod) } }
     })
+
+    } // end ENABLE_CARD_PAYMENTS
 
     // --- receipts ----------------------------------------------------------
 

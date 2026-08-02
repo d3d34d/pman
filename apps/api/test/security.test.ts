@@ -216,12 +216,40 @@ describe('payment idempotency is tenant-safe', () => {
     expect(await db.payment.count({ where: { leaseId: a.lease.id } })).toBe(0)
   })
 
-  it('rejects absurdly large amounts', async () => {
+  it('rejects absurdly large amounts at validation, before the gateway', async () => {
     const t = await tenant('big@sec.dev')
     await ensureRentCharges(db, t.lease.id, periodOf(new Date()))
     const res = await inject('POST', '/portal/pay', t.token, { amountCents: 999_999_999, paymentMethodId: t.method.id, idempotencyKey: 'big-amount-key' })
-    expect(res.status).toBe(402)
-    expect(res.body.code).toBe('amount_too_large')
+    expect(res.status).toBe(400)
+  })
+
+  // Amounts at or beyond 2^31 must never reach the database: the money columns
+  // are 32-bit INTEGERs, and SQLite stores an oversized value happily while
+  // Prisma then refuses to read the row back — permanently 500ing the rent
+  // roll, dashboard, reports and the tenant's ledger.
+  it('rejects money values that would overflow the 32-bit money columns', async () => {
+    const t = await tenant('overflow@sec.dev')
+    const mgrUser = await db.user.findUniqueOrThrow({ where: { id: t.managerId } })
+    const mgrToken = app.signToken(mgrUser)
+    const lease = t.lease
+    for (const amount of [2_147_483_648, 3_000_000_000, 100_000_001]) {
+      const payment = await inject('POST', `/leases/${lease.id}/payments`, mgrToken, {
+        amountCents: amount,
+        receivedDate: '2026-01-05',
+        method: 'CASH',
+      })
+      expect(payment.status, `payment ${amount}`).toBe(400)
+
+      const charge = await inject('POST', `/leases/${lease.id}/charges`, mgrToken, {
+        amountCents: amount,
+        dueDate: '2026-01-05',
+        description: 'overflow probe',
+      })
+      expect(charge.status, `charge ${amount}`).toBe(400)
+    }
+    // The ledger must still be readable afterwards.
+    const ledger = await inject('GET', `/leases/${lease.id}/ledger`, mgrToken)
+    expect(ledger.status).toBe(200)
   })
 })
 
@@ -368,5 +396,39 @@ describe('account deletion', () => {
     expect(profile?.userId).toBeNull()
     expect(await db.lease.count({ where: { id: t.lease.id } })).toBe(1)
     expect(await db.payment.count({ where: { leaseId: t.lease.id } })).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Card handling is deferred. The Play data-safety declaration and the privacy
+// policy both state no card or bank credentials are handled, so these routes
+// must not exist unless explicitly switched on.
+// ---------------------------------------------------------------------------
+
+describe('card payment routes are off by default', () => {
+  it('does not expose the wallet, pay or autopay endpoints without ENABLE_CARD_PAYMENTS', async () => {
+    const previous = process.env.ENABLE_CARD_PAYMENTS
+    delete process.env.ENABLE_CARD_PAYMENTS
+    const locked = await buildApp({
+      db,
+      jwtSecret: 'test-secret-that-is-long-enough-to-pass',
+      paymentProvider: provider,
+      rateLimit: false,
+    })
+    try {
+      for (const [method, url] of [
+        ['GET', '/portal/payment-methods'],
+        ['POST', '/portal/payment-methods'],
+        ['POST', '/portal/pay'],
+        ['GET', '/portal/autopay'],
+        ['PUT', '/portal/autopay'],
+      ] as const) {
+        const res = await locked.inject({ method, url })
+        expect(res.statusCode, `${method} ${url}`).toBe(404)
+      }
+    } finally {
+      await locked.close()
+      if (previous !== undefined) process.env.ENABLE_CARD_PAYMENTS = previous
+    }
   })
 })
