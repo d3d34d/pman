@@ -57,8 +57,16 @@ const server = spawn('node', ['store/src/serve.mjs', DIST, String(PORT)], { stdi
 await sleep(1500)
 
 try {
+  // Play asks for phone AND both tablet sizes separately; each has its own
+  // side limits, so they cannot be one image resized.
   step('Phone screenshots (1080×1920)')
-  run('node', ['store/src/shoot.mjs'])
+  run('node', ['store/src/shoot.mjs', '--device=phone'])
+
+  step('7-inch tablet screenshots (1206×2144)')
+  run('node', ['store/src/shoot.mjs', '--device=tablet7'])
+
+  step('10-inch tablet screenshots (1440×2560)')
+  run('node', ['store/src/shoot.mjs', '--device=tablet10'])
 } finally {
   server.kill()
 }

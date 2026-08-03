@@ -11,19 +11,34 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
 
 const BASE = process.env.DEMO_URL ?? 'http://localhost:8099'
-const OUT = 'store/assets/screenshots'
 const PROFILE = '/tmp/pman-shoot-profile'
 const PORT = 9333
 
-// 1080x1920 output: a 360x640 CSS viewport at 3x. Play wants phone shots
-// between 320px and 3840px on a side, 9:16 here.
-const VIEWPORT = { width: 360, height: 640, deviceScaleFactor: 3, mobile: true }
+// Play requires phone AND tablet screenshots, each 16:9 or 9:16 with side
+// limits (phone/7-inch 320-3840px, 10-inch 1080-7680px). Every profile below
+// renders an EXACT 9:16 by choosing a CSS width divisible by 9 and doubling:
+// off-by-one rounding would break the ratio Play checks.
+const DEVICES = {
+  phone:    { dir: 'screenshots',          width: 360, height: 640,  deviceScaleFactor: 3, mobile: true },
+  tablet7:  { dir: 'screenshots-tablet7',  width: 603, height: 1072, deviceScaleFactor: 2, mobile: true },
+  tablet10: { dir: 'screenshots-tablet10', width: 720, height: 1280, deviceScaleFactor: 2, mobile: true },
+}
+
+const which = (process.argv.find((a) => a.startsWith('--device=')) ?? '--device=phone').split('=')[1]
+const device = DEVICES[which]
+if (!device) {
+  console.error(`Unknown --device=${which}. Options: ${Object.keys(DEVICES).join(', ')}`)
+  process.exit(1)
+}
+const OUT = `store/assets/${device.dir}`
+const VIEWPORT = { width: device.width, height: device.height, deviceScaleFactor: device.deviceScaleFactor, mobile: true }
 
 // Navigation is done by tapping the tab bar, not by loading URLs: the demo
 // backend lives in page memory, so a full page load reseeds it and invalidates
 // the session — exactly what a real user never does mid-session.
-const TAB_Y = 612 // tab bar centre in the 360x640 viewport
-const tab = (n) => ({ x: 36 + (n - 1) * 72, y: TAB_Y }) // 5 tabs across 360px
+// Tab geometry is derived from the viewport so it holds on every device.
+const TAB_Y = device.height - 28
+const tab = (n) => ({ x: (device.width / 5) * (n - 0.5), y: TAB_Y })
 
 const SHOTS = [
   { file: '01-dashboard.png', goto: '/?as=manager', wait: 5000 },
@@ -117,7 +132,7 @@ async function main() {
 
   ws.close()
   chrome.kill()
-  console.log(`\nWrote ${SHOTS.length} screenshots to ${OUT}/`)
+  console.log(`\nWrote ${SHOTS.length} ${which} screenshots (${device.width*device.deviceScaleFactor}x${device.height*device.deviceScaleFactor}) to ${OUT}/`)
 }
 
 main().catch((e) => {
