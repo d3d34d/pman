@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<script>
+  // Variant set before first paint so headless screenshots never race it.
+  // ?v=full | foreground | background | monochrome
+  document.documentElement.className =
+    'v-' + (new URLSearchParams(location.search).get('v') || 'full');
+</script>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 1024px; height: 1024px; overflow: hidden; background: transparent; }
+
+  /* Adaptive-icon variants drop the plate or the artwork. */
+  .v-foreground #plate, .v-monochrome #plate { display: none; }
+  .v-background  #art   { display: none; }
+  .v-monochrome  #shadow { display: none; }
+
+  /* The Play/launcher icon is never masked, so the artwork can fill more of
+     the frame. The adaptive foreground stays smaller so Android's circle and
+     squircle masks can't clip the building. */
+  .v-full #art { transform: scale(1.12); transform-origin: 512px 512px; }
+</style>
+</head>
+<body>
+<!--
+  Icon design notes
+  - Two volumes read as "property management": an apartment tower + a house
+    with a pitched roof. The house silhouette is what makes it legible as
+    housing rather than generic office blocks.
+  - Isometric extrusion (right + top faces) gives real 3D, with each face at a
+    different luminance so the form survives at 48px.
+  - Glass = translucent fills over the brand plate, bright top edges, one
+    specular sweep, and a contact shadow so it sits rather than floats.
+  - Artwork spans ~660/1024 so Android's adaptive mask never clips it.
+-->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- brand plate -->
+    <radialGradient id="plateBg" cx="24%" cy="10%" r="118%">
+      <stop offset="0%"   stop-color="#6f9bff"/>
+      <stop offset="34%"  stop-color="#3a72f2"/>
+      <stop offset="70%"  stop-color="#1e46c8"/>
+      <stop offset="100%" stop-color="#122a8e"/>
+    </radialGradient>
+    <radialGradient id="plateKey" cx="26%" cy="14%" r="62%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity=".34"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- glass faces: front is brightest, right side darker, top brightest edge -->
+    <linearGradient id="gFront" x1="0" y1="0" x2=".35" y2="1">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity=".52"/>
+      <stop offset="46%"  stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity=".11"/>
+    </linearGradient>
+    <linearGradient id="gSide" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#9dbcff" stop-opacity=".40"/>
+      <stop offset="100%" stop-color="#1b3fae" stop-opacity=".40"/>
+    </linearGradient>
+    <linearGradient id="gTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity=".78"/>
+      <stop offset="100%" stop-color="#cfe0ff" stop-opacity=".46"/>
+    </linearGradient>
+    <linearGradient id="gRoof" x1="0" y1="0" x2=".4" y2="1">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity=".80"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity=".40"/>
+    </linearGradient>
+    <linearGradient id="gRoofSide" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#dbe7ff" stop-opacity=".58"/>
+      <stop offset="100%" stop-color="#4f79e8" stop-opacity=".48"/>
+    </linearGradient>
+
+    <!-- specular sweep -->
+    <linearGradient id="gGloss" x1="0" y1="0" x2=".9" y2="1">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity=".42"/>
+      <stop offset="30%"  stop-color="#ffffff" stop-opacity=".08"/>
+      <stop offset="55%"  stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <radialGradient id="gShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#050f3c" stop-opacity=".58"/>
+      <stop offset="100%" stop-color="#050f3c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blurShadow" x="-30%" y="-60%" width="160%" height="220%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+
+    <clipPath id="clipTowerFront"><rect x="212" y="286" width="222" height="470" rx="14"/></clipPath>
+    <clipPath id="clipHouseFront"><rect x="512" y="470" width="222" height="286" rx="12"/></clipPath>
+  </defs>
+
+  <!-- ---------- background plate ---------- -->
+  <g id="plate">
+    <rect width="1024" height="1024" fill="url(#plateBg)"/>
+    <rect width="1024" height="1024" fill="url(#plateKey)"/>
+  </g>
+
+  <!-- ---------- artwork ----------
+       Local geometry spans x 212..806, y 286..756. Translated to sit optically
+       centred (a hair above true centre, which reads as centred to the eye). -->
+  <g id="art" transform="translate(3,44)">
+
+    <ellipse id="shadow" cx="509" cy="768" rx="238" ry="34" fill="url(#gShadow)" filter="url(#blurShadow)"/>
+
+    <!-- ===== TOWER ===== -->
+    <!-- top face -->
+    <path class="mono-fill" d="M212 286 L282 240 L504 240 L434 286 Z" fill="url(#gTop)"/>
+    <!-- right face -->
+    <path class="mono-fill" d="M434 286 L504 240 L504 710 L434 756 Z" fill="url(#gSide)"/>
+    <!-- front face -->
+    <rect class="mono-fill" x="212" y="286" width="222" height="470" rx="14" fill="url(#gFront)"/>
+
+    <!-- tower windows -->
+    <g clip-path="url(#clipTowerFront)" class="win-group">
+      <g fill="#ffffff">
+        <rect x="246" y="330" width="60" height="46" rx="7" opacity=".95"/>
+        <rect x="340" y="330" width="60" height="46" rx="7" opacity=".55"/>
+        <rect x="246" y="412" width="60" height="46" rx="7" opacity=".62"/>
+        <rect x="340" y="412" width="60" height="46" rx="7" opacity=".95"/>
+        <rect x="246" y="494" width="60" height="46" rx="7" opacity=".42"/>
+        <rect x="340" y="494" width="60" height="46" rx="7" opacity=".70"/>
+        <rect x="246" y="576" width="60" height="46" rx="7" opacity=".80"/>
+        <rect x="340" y="576" width="60" height="46" rx="7" opacity=".45"/>
+        <rect x="246" y="658" width="60" height="46" rx="7" opacity=".55"/>
+        <rect x="340" y="658" width="60" height="46" rx="7" opacity=".88"/>
+      </g>
+    </g>
+    <!-- side-face windows, dimmer (light falls off) -->
+    <g fill="#cfe0ff" opacity=".38" class="win-group">
+      <path d="M452 336 L488 312 L488 350 L452 374 Z"/>
+      <path d="M452 430 L488 406 L488 444 L452 468 Z"/>
+      <path d="M452 524 L488 500 L488 538 L452 562 Z"/>
+      <path d="M452 618 L488 594 L488 632 L452 656 Z"/>
+    </g>
+
+    <!-- ===== HOUSE ===== -->
+    <!-- roof right slope -->
+    <path class="mono-fill" d="M623 372 L693 326 L804 424 L734 470 Z" fill="url(#gRoofSide)"/>
+    <!-- roof front gable -->
+    <path class="mono-fill" d="M492 470 L623 372 L754 470 Z" fill="url(#gRoof)"/>
+    <!-- right face -->
+    <path class="mono-fill" d="M734 470 L804 424 L804 710 L734 756 Z" fill="url(#gSide)"/>
+    <!-- front face -->
+    <rect class="mono-fill" x="512" y="470" width="222" height="286" rx="12" fill="url(#gFront)"/>
+
+    <!-- house windows + door -->
+    <g clip-path="url(#clipHouseFront)" class="win-group">
+      <g fill="#ffffff">
+        <rect x="546" y="512" width="56" height="46" rx="7" opacity=".95"/>
+        <rect x="644" y="512" width="56" height="46" rx="7" opacity=".58"/>
+      </g>
+      <path d="M578 756 L578 640 a45 45 0 0 1 90 0 L668 756 Z" fill="#ffffff" opacity=".46"/>
+    </g>
+
+    <!-- ===== edge highlights: the top-lit rims that sell "glass" ===== -->
+    <g class="mono-hide" fill="none" stroke="#ffffff" stroke-linecap="round">
+      <path d="M212 286 L282 240 L504 240" stroke-opacity=".85" stroke-width="4"/>
+      <path d="M212 300 L212 742" stroke-opacity=".45" stroke-width="3"/>
+      <path d="M434 286 L504 240"  stroke-opacity=".55" stroke-width="3"/>
+      <path d="M492 470 L623 372 L754 470" stroke-opacity=".85" stroke-width="4"/>
+      <path d="M623 372 L693 326 L804 424" stroke-opacity=".6" stroke-width="3"/>
+      <path d="M512 482 L512 742" stroke-opacity=".45" stroke-width="3"/>
+    </g>
+
+    <!-- outline keeps the silhouette crisp against the plate -->
+    <g class="mono-hide" fill="none" stroke="#ffffff" stroke-opacity=".30" stroke-width="2.5">
+      <rect x="212" y="286" width="222" height="470" rx="14"/>
+      <rect x="512" y="470" width="222" height="286" rx="12"/>
+    </g>
+
+    <!-- specular sweep across the whole object -->
+    <g class="mono-hide">
+      <path d="M212 286 L434 286 L434 756 L212 756 Z" fill="url(#gGloss)" opacity=".9"/>
+      <path d="M492 470 L734 470 L734 756 L512 756 Z" fill="url(#gGloss)" opacity=".55"/>
+    </g>
+  </g>
+
+  <style>
+    /* Monochrome: flat white silhouette for Android themed icons. */
+    .v-monochrome .mono-fill { fill: #ffffff; }
+    .v-monochrome .mono-hide { display: none; }
+    .v-monochrome .win-group { display: none; }
+  </style>
+</svg>
+</body>
+</html>

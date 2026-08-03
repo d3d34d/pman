@@ -18,7 +18,8 @@
     "qr": "node scripts/make-qr.mjs",
     "store:assets": "node store/src/build-assets.mjs",
     "store:seo": "node store/src/keyword-density.mjs",
-    "backup": "node scripts/backup.mjs"
+    "backup": "node scripts/backup.mjs",
+    "icon": "node store/src/build-icon.mjs"
   },
   "devDependencies": {
     "qrcode": "^1.5.4"
